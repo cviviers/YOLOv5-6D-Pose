@@ -1,0 +1,25 @@
+
+
+# train and val data as 1) directory: path/images/, 2) file: path/images.txt, or 3) list: [path1/images/, path2/images/]
+train: ../data/LINEMOD/driller/train.txt 
+val: ../data/LINEMOD/driller/test.txt 
+test: ../data/LINEMOD/driller/test.txt 
+
+mesh: ../data/LINEMOD/driller/driller.ply
+tr_range: ../data/LINEMOD/driller/training_range.txt
+backup : ../backup/driller
+names : ["driller"]
+
+background_path: "../data/VOCdevkit/VOC2012/JPEGImages"
+coords: 18
+
+diam : 0.262
+gpus : 0
+
+nc: 1  # number of classes
+
+fx: 572.4114 
+fy: 573.5704
+u0: 325.2611
+v0: 242.0489
+

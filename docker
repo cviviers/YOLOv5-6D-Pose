@@ -1,0 +1,37 @@
+FROM nvidia/cuda:11.2.2-cudnn8-devel-ubuntu20.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update --fix-missing -y 
+RUN apt-get install ffmpeg libsm6 libxext6  -y
+RUN apt-get update --fix-missing -y
+RUN apt-get install software-properties-common -y
+RUN add-apt-repository ppa:deadsnakes/ppa -y
+RUN apt-get update --fix-missing -y && apt-get install -y python3.9 python3.9-dev python3.9-distutils git curl
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+RUN python3.9 get-pip.py
+# RUN apt-get install -y python3.9
+# RUN apt-get install python3-pip python3-dev git -y
+RUN pip3.9 install --upgrade pip
+
+RUN pip3.9 install torch==1.9.1+cu111 torchvision==0.10.1+cu111 torchaudio==0.9.1 -f https://download.pytorch.org/whl/torch_stable.html
+# -f https://download.pytorch.org/wh1/cu111
+# RUN pip3 install tqdm matplotlib numpy Pillow PyYAML argparse scikit-learn scikit-image numpy opencv-python tensorboard requests scipy wandb pandas seaborn thop Cython
+RUN pip3.9 install matplotlib==3.8.2 \
+    numpy==1.26.2 \
+    opencv_python==4.8.1.78 \
+    Pillow==10.1.0 \
+    protobuf==4.25.1 \
+    PyYAML==6.0.1 \
+    Requests==2.31.0 \
+    scipy==1.11.4 \
+    Cython==3.0.6 \
+    scikit-image \
+    coremltools==5.2.0 \
+    lion_pytorch==0.1.2 \
+    tqdm setuptools==58.1.0 \
+    wandb \
+    tensorboard==2.14.1 \
+    tensorboardx>=2.1 \
+    seaborn==0.13.0 \
+    pandas==2.1.4

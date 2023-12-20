@@ -1,0 +1,25 @@
+
+
+# train and val data as 1) directory: path/images/, 2) file: path/images.txt, or 3) list: [path1/images/, path2/images/]
+train: ../data/LINEMOD/eggbox/train.txt 
+val: ../data/LINEMOD/eggbox/test.txt 
+test: ../data/LINEMOD/eggbox/test.txt 
+
+mesh: ../data/LINEMOD/eggbox/eggbox.ply
+tr_range: ../data/LINEMOD/eggbox/training_range.txt
+backup : ../backup/eggbox
+names : ["eggbox"]
+
+background_path: "../data/VOCdevkit/VOC2012/JPEGImages"
+coords: 18
+
+diam : 0.176364
+gpus : 0
+
+nc: 1  # number of classes
+
+fx: 572.4114 
+fy: 573.5704
+u0: 325.2611
+v0: 242.0489
+
