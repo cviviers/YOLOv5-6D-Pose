@@ -26,13 +26,14 @@
 
 ## Results
 <p >
-<img src="https://github.com/cviviers/test_yolo/blob/main/results/images/acc_vs_speed.png" width=60% height=60%> 
+<img src="https://github.com/cviviers/YOLOv5-6D-Pose/blob/main/results/images/acc_vs_speed.png" width=60% height=60%> 
 </p>
 </div>
 
 ## Quick Start
 <details>
 <summary>Setup</summary>
+
 Clone repo and install [requirements.txt](https://github.com/cviviers/YOLOv5-6D-Pose/blob/master/requirements.txt) in a
 [**Python>=3.9.0**](https://www.python.org/) environment, including
 [**PyTorch==1.9**](https://pytorch.org/get-started/locally/).
@@ -49,6 +50,7 @@ python3 ./setup.py build_ext --inplace # To compute ADD-S metric
 Alternatively, build the [dockerfile](https://github.com/cviviers/YOLOv5-6D-Pose/blob/master/docker) included or pull our image [sudochris/yolo6dpose:v2](https://hub.docker.com/repository/docker/sudochris/yolo6dpose/general).
 
 Download the [weights](https://drive.google.com/drive/folders/11BW41xO3R1UBnc2Dx1xA3CPbYPGTrfHQ?usp=drive_link) and [data](https://drive.google.com/drive/folders/13pkdF4KpqXWXbEIkiAcHoO-YUr_CWN-L?usp=drive_link)
+
 </details>
 <details>
 <summary>Inference</summary>
