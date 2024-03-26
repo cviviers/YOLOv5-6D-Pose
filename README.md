@@ -25,6 +25,7 @@
 <div align="center">  
 
 ## Results
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/yolov5-6d-advancing-6-dof-instrument-pose/6d-pose-estimation-on-linemod)](https://paperswithcode.com/sota/6d-pose-estimation-on-linemod?p=yolov5-6d-advancing-6-dof-instrument-pose)
 <p >
 <img src="https://github.com/cviviers/YOLOv5-6D-Pose/blob/main/results/images/acc_vs_speed.png" width=60% height=60%> 
 </p>
