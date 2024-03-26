@@ -29,6 +29,8 @@
 <p >
 <img src="https://github.com/cviviers/YOLOv5-6D-Pose/blob/main/results/images/acc_vs_speed.png" width=60% height=60%> 
 </p>
+
+Currently the fastest single-shot object 6-DoF pose estimation method at this level of accuracy.
 </div>
 
 ## Quick Start
