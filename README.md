@@ -5,9 +5,9 @@
 </div>
 
 <h3 align="center">
-  <a href="">Project Page</a> |
+  <a href="">Project Page (Coming soon)</a> |
   <a href="https://ieeexplore.ieee.org/document/10478293">Paper</a> |
-  <a href="">arXiv</a> |
+  <a href="https://arxiv.org/abs/2405.11677v1">arXiv</a> |
 </h3>
 
 <p float="left">
