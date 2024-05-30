@@ -455,7 +455,10 @@ def Linemodimg2label_paths(img_paths):
 
 def Linemodimg2mask_paths(img_paths):
     # Define mask paths as a function of image paths
-    return [x.replace("JPEGImages", "mask").replace("images", "mask").replace('/00', '/').replace(".jpg", ".png") for x in img_paths]
+    if os.name == 'nt':
+        return [x.replace("JPEGImages", "mask").replace("images", "mask").replace('\\00', '\\').replace(".jpg", ".png") for x in img_paths]
+    else:
+        return [x.replace("JPEGImages", "mask").replace("images", "mask").replace('/00', '/').replace(".jpg", ".png") for x in img_paths]
 
 def Linemodimg2mask_path(img_paths):
     # Define mask paths as a function of image paths
@@ -482,18 +485,21 @@ class LoadImagesAndLabelsPose(Dataset):  # for training/testing
             print(f"Creating occluders from VOC: {occlude_path}")
             self.occluders = load_occluders(pascal_voc_root_path=occlude_path)
 
-    
+        
         data_dir = os.path.dirname(path)
+
         images_folder = None
         for folder in os.listdir(data_dir):
             if 'images' in folder.lower():
                 images_folder = os.path.join(data_dir, folder)
+
         if images_folder is None:
             raise Exception(f'Error loading data from {data_dir}: Could not find images folder')
         # images_folder = os.path.join(data_dir, 'JPEGImages')
         try:
             f = []  # image files
             for p in path if isinstance(path, list) else [path]:
+                
                 p = Path(p)  # os-agnostic
                 if p.is_dir():  # dir
                     f += glob.glob(str(p / '**' / '*.*'), recursive=True)
@@ -509,16 +515,14 @@ class LoadImagesAndLabelsPose(Dataset):  # for training/testing
                     raise Exception(f'{prefix}{p} does not exist')
             self.img_files = sorted([os.path.join(images_folder, x.replace('/', os.sep)) for x in f if x.split('.')[-1].lower() in img_formats])
             # self.img_files = sorted([x for x in f if x.suffix[1:].lower() in img_formats])  # pathlib
-            assert self.img_files, f'{prefix}No images found'
+            assert self.img_files, f'{prefix} No images found'
         except Exception as e:
-            raise Exception(f'{prefix}Error loading data from {path}: {e}')
+            raise Exception(f'{prefix} Error loading data from {path}: {e}')
 
         # Check cache
         self.label_files = Linemodimg2label_paths(self.img_files)  # labels
         cache_path = (p if p.is_file() else Path(self.label_files[0]).parent).with_suffix('.cache')  # cached labels
         self.mask_files = Linemodimg2mask_paths(self.img_files)  # mask
-
-
         if cache_path.is_file():
             
             cache, exists = torch.load(cache_path), True  # load
