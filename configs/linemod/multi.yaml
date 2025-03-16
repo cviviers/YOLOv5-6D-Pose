@@ -13,7 +13,7 @@ mesh7: /home/20195435/projects/data/LINEMOD_updated/LINEMOD/holepuncher/holepunc
 
 names : ["ape", "can", "cat", "driller", "duck", "eggbox", "glue", "holepuncher"]
 
-background_path: "../data/VOCdevkit/VOC2012/JPEGImages"
+background_path: "/home/20195435/projects/data/VOCtrainval_11-May-2012/VOCdevkit/VOC2012/JPEGImages"
 coords: 18
 
 diam0: 0.103
