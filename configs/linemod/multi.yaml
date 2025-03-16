@@ -1,15 +1,15 @@
 # train and val data as 1) directory: path/images/, 2) file: path/images.txt, or 3) list: [path1/images/, path2/images/]
-train: /home/20195435/projects/data/LINEMOD_updated/occlusion/train.txt 
-val: /home/20195435/projects/data/LINEMOD_updated/occlusion/test.txt 
+train: /home/20195435/projects/data/LINEMOD_updated/LINEMOD/occlusion/train.txt 
+val: /home/20195435/projects/data/LINEMOD_updated/LINEMOD/occlusion/test.txt 
 
-mesh0: /home/20195435/projects/data/LINEMOD_updated/ape/ape.ply
-mesh1: /home/20195435/projects/data/LINEMOD_updated/can/can.ply
-mesh2: /home/20195435/projects/data/LINEMOD_updated/cat/cat.ply
-mesh3: /home/20195435/projects/data/LINEMOD_updated/driller/driller.ply
-mesh4: /home/20195435/projects/data/LINEMOD_updated/duck/duck.ply
-mesh5: /home/20195435/projects/data/LINEMOD_updated/eggbox/eggbox.ply
-mesh6: /home/20195435/projects/data/LINEMOD_updated/glue/glue.ply
-mesh7: /home/20195435/projects/data/LINEMOD_updated/holepuncher/holepuncher.ply
+mesh0: /home/20195435/projects/data/LINEMOD_updated/LINEMOD/ape/ape.ply
+mesh1: /home/20195435/projects/data/LINEMOD_updated/LINEMOD/can/can.ply
+mesh2: /home/20195435/projects/data/LINEMOD_updated/LINEMOD/cat/cat.ply
+mesh3: /home/20195435/projects/data/LINEMOD_updated/LINEMOD/driller/driller.ply
+mesh4: /home/20195435/projects/data/LINEMOD_updated/LINEMOD/duck/duck.ply
+mesh5: /home/20195435/projects/data/LINEMOD_updated/LINEMOD/eggbox/eggbox.ply
+mesh6: /home/20195435/projects/data/LINEMOD_updated/LINEMOD/glue/glue.ply
+mesh7: /home/20195435/projects/data/LINEMOD_updated/LINEMOD/holepuncher/holepuncher.ply
 
 names : ["ape", "can", "cat", "driller", "duck", "eggbox", "glue", "holepuncher"]
 
