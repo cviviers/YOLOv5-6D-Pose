@@ -366,7 +366,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
             if ema:
                 ema.update_attr(model, include=['yaml', 'nc', 'hyp', 'gr', 'names', 'stride', 'class_weights'])
             final_epoch = epoch + 1 == epochs
-            if not opt.notest and epoch%1 == 0 or  not opt.notest and epoch >  0.8*epochs and epoch%5 == 0 or final_epoch:  # Calculate accuracies
+            if not opt.notest and epoch%20 == 0 and epoch > 30 or  not opt.notest and epoch >  0.8*epochs and epoch%5 == 0 or final_epoch:  # Calculate accuracies
                 results = test.test(opt.data,
                                     batch_size = opt.batch_size,
                                     imgsz=imgsz_test,
