@@ -192,7 +192,7 @@ def box_filter(prediction, conf_thres=0.01, classes=None, multi_label=False, max
         # # elif n > max_nms:  # excess boxes
         if multi_label:
             i, j = (x[:, 19:] > conf_thres).nonzero(as_tuple=False).T
-            x = torch.cat((box[i], x[i, j + 5, None], j[:, None].float()), 1)
+            x = torch.cat((box[i], x[i, j + 19, None], j[:, None].float()), 1)
         else:  # best class only
             conf, j = x[:, 19:].max(1, keepdim=True)
             x = torch.cat((box, conf, j.float()), 1)[conf.view(-1) > conf_thres]

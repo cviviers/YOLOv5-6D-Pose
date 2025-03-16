@@ -1,0 +1,38 @@
+# train and val data as 1) directory: path/images/, 2) file: path/images.txt, or 3) list: [path1/images/, path2/images/]
+train: C:\Users\20195435\Documents\TUe\Pose Estimation\data\LINEMOD_updated\LINEMOD\occlusion\train.txt 
+val: C:\Users\20195435\Documents\TUe\Pose Estimation\data\LINEMOD_updated\LINEMOD\occlusion\test.txt 
+
+mesh0: C:\Users\20195435\Documents\TUe\Pose Estimation\data\LINEMOD_updated\LINEMOD/ape/ape.ply
+mesh1: C:\Users\20195435\Documents\TUe\Pose Estimation\data\LINEMOD_updated\LINEMOD/can/can.ply
+mesh2: C:\Users\20195435\Documents\TUe\Pose Estimation\data\LINEMOD_updated\LINEMOD/cat/cat.ply
+mesh3: C:\Users\20195435\Documents\TUe\Pose Estimation\data\LINEMOD_updated\LINEMOD/driller/driller.ply
+mesh4: C:\Users\20195435\Documents\TUe\Pose Estimation\data\LINEMOD_updated\LINEMOD/duck/duck.ply
+mesh5: C:\Users\20195435\Documents\TUe\Pose Estimation\data\LINEMOD_updated\LINEMOD/eggbox/eggbox.ply
+mesh6: C:\Users\20195435\Documents\TUe\Pose Estimation\data\LINEMOD_updated\LINEMOD/glue/glue.ply
+mesh7: C:\Users\20195435\Documents\TUe\Pose Estimation\data\LINEMOD_updated\LINEMOD/holepuncher/holepuncher.ply
+
+names : ["ape", "can", "cat", "driller", "duck", "eggbox", "glue", "holepuncher"]
+
+background_path: "C:/Users/20195435/Documents/TUe/Pose Estimation/data/VOCtrainval_11-May-2012/VOCdevkit/VOC2012/JPEGImages"
+coords: 18
+
+diam0: 0.103
+diam1: 0.202
+diam2: 0.155
+diam3: 0.262
+diam4: 0.109
+diam5: 0.176364
+diam6: 0.176
+diam7: 0.162
+
+gpus : 0
+
+width : 640
+height : 480
+
+nc: 8  # number of classes
+
+fx: 572.4114 
+fy: 573.5704
+u0: 325.2611
+v0: 242.0489

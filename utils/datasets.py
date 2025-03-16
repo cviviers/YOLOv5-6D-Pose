@@ -1,6 +1,7 @@
 # Dataset utils and dataloaders
 import matplotlib.pyplot as plt
 import matplotlib
+import seaborn as sns
 import glob
 import logging
 import math
@@ -338,7 +339,7 @@ class LoadVideo:
         img = img[:, :, :, ::-1].transpose(0, 3, 1, 2)  # BGR to RGB, to bsx3x416x416
         img = np.ascontiguousarray(img)
 
-        return self.sources, img, img0, self.intrinics, None        
+        return self.sources, img, img0, self.intrinsic, None        
        
 
     def __len__(self):
@@ -608,6 +609,7 @@ class LoadImagesAndLabelsPose(Dataset):  # for training/testing
 
         for i, (im_file, lb_file, mk_file) in enumerate(pbar):
             try:
+                im_file = os.path.normpath(im_file)
                 # verify images
                 im = Image.open(im_file)
                 im.verify()  # PIL verify
@@ -684,15 +686,15 @@ class LoadImagesAndLabelsPose(Dataset):  # for training/testing
 
         # Augment background
         if self.augment: 
-            mask = cv2.imread(self.masks[index])
+            
             if hyp['background'] and self.bg_file_names is not None and self.masks[index] != None:
-
-                    if random.random() < hyp['background']:
-                        # Get background image path
-                        random_bg_index = random.randint(0, len(self.bg_file_names) - 1)
-                        bgpath = self.bg_file_names[random_bg_index]
-                        bg = cv2.imread(bgpath)
-                        img = change_background(img, mask, bg)
+                mask = cv2.imread(self.masks[index])
+                if random.random() < hyp['background']:
+                    # Get background image path
+                    random_bg_index = random.randint(0, len(self.bg_file_names) - 1)
+                    bgpath = self.bg_file_names[random_bg_index]
+                    bg = cv2.imread(bgpath)
+                    img = change_background(img, mask, bg)
 
         # Letterbox
         shape = self.batch_shapes[self.batch[index]] if self.rect else self.img_size  # final letterboxed shape
@@ -743,53 +745,57 @@ class LoadImagesAndLabelsPose(Dataset):  # for training/testing
             labels[:, 19:21] = compute_new_width_height(labels[:, 1:19]) 
 
         if False:
-
-            corners2D_gt = np.array(np.reshape(labels_og[0, 1:9*2+1], [9, 2]), dtype='float32')
-            corners2D_gt[:, 0] = corners2D_gt[:, 0] * w
-            corners2D_gt[:, 1] = corners2D_gt[:, 1] * h 
-            corners2D_gt_aug = np.array(np.reshape(labels[0, 1:9*2+1], [9, 2]), dtype='float32')
-            corners2D_gt_aug[:, 0] = corners2D_gt_aug[:, 0] * img.shape[1]
-            corners2D_gt_aug[:, 1] = corners2D_gt_aug[:, 1] * img.shape[0] 
-
-            corn2D_gt= corners2D_gt[1:, :]
-            corn2D_gt_aug= corners2D_gt_aug[1:, :]
-
-            edges_corners = [[0, 1], [0, 2], [0, 4], [1, 3], [1, 5], [2, 3], [2, 6], [3, 7], [4, 5], [4, 6], [5, 7], [6, 7]]
-            # # # Visualize
-            
-            # matplotlib.use('TkAgg')
+            matplotlib.use('TkAgg')
             fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+
             ax[0].imshow(img2[:, :, ::-1])  # base
-            ax[0].scatter(corners2D_gt.T[0], corners2D_gt.T[1], c='r', s = 20)
-            
             ax[1].imshow(img[:, :, ::-1])  # warped
-            ax[1].scatter(corners2D_gt_aug.T[0], corners2D_gt_aug.T[1], c='r', s = 20)
-            # Projections
-            for edge in edges_corners:
-                ax[1].plot(corn2D_gt_aug[edge, 0], corn2D_gt_aug[edge, 1], color='g', linewidth=1.0)
-                ax[0].plot(corn2D_gt[edge, 0], corn2D_gt[edge, 1], color='g', linewidth=1.0)
+
+            palette = sns.color_palette(None, nl)
+
+            for label_idx in range(labels_og.shape[0]):
+
+                corners2D_gt = np.array(np.reshape(labels_og[label_idx, 1:9*2+1], [9, 2]), dtype='float32')
+                corners2D_gt[:, 0] = corners2D_gt[:, 0] * w
+                corners2D_gt[:, 1] = corners2D_gt[:, 1] * h 
+                corners2D_gt_aug = np.array(np.reshape(labels[label_idx, 1:9*2+1], [9, 2]), dtype='float32')
+                corners2D_gt_aug[:, 0] = corners2D_gt_aug[:, 0] * img.shape[1]
+                corners2D_gt_aug[:, 1] = corners2D_gt_aug[:, 1] * img.shape[0] 
+
+                corn2D_gt= corners2D_gt[1:, :]
+                corn2D_gt_aug= corners2D_gt_aug[1:, :]
+
+                edges_corners = [[0, 1], [0, 2], [0, 4], [1, 3], [1, 5], [2, 3], [2, 6], [3, 7], [4, 5], [4, 6], [5, 7], [6, 7]]
+
+
+                ax[0].scatter(corners2D_gt.T[0], corners2D_gt.T[1], c='r', s = 20)
+                ax[1].scatter(corners2D_gt_aug.T[0], corners2D_gt_aug.T[1], c='r', s = 20)
+                # Projections
+                for edge in edges_corners:
+                    ax[1].plot(corn2D_gt_aug[edge, 0], corn2D_gt_aug[edge, 1], color=palette[label_idx], linewidth=1.0)
+                    ax[0].plot(corn2D_gt[edge, 0], corn2D_gt[edge, 1], color=palette[label_idx], linewidth=1.0)
             plt.show()
-            plt.savefig('test.png')
+            # plt.savefig('test.png')
 
 
         labels_out = torch.zeros((nl, 22))
-        intrinics = torch.zeros((nl, 6))
+        intrinsic = torch.zeros((nl, 6))
 
         if nl:
             labels_out[:, 1:] = torch.from_numpy(labels[:, :21])
-            intrinics[:, :] = torch.from_numpy(labels[:, 21:27])
+            intrinsic[:, :] = torch.from_numpy(labels[:, 21:27])
         # Convert
         img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB
         img = np.ascontiguousarray(img)
-        return torch.from_numpy(img), labels_out, intrinics, self.img_files[index], shapes
+        return torch.from_numpy(img), labels_out, intrinsic, self.img_files[index], shapes
 
     @staticmethod
     def collate_fn(batch):
-        img, label, intrinics, path, shapes = zip(*batch)  # transposed
+        img, label, intrinsic, path, shapes = zip(*batch)  # transposed
         for i, l in enumerate(label):
             l[:, 0] = i  # add target image index for build_targets()
-            # intrinics[i][:, 0] = i
-        return torch.stack(img, 0), torch.cat(label, 0), torch.cat(intrinics, 0), path, shapes
+            # intrinsic[i][:, 0] = i
+        return torch.stack(img, 0), torch.cat(label, 0), torch.cat(intrinsic, 0), path, shapes
 
 def xy_norm2xy_pix(x, w=640, h=640, padw=0, padh=0):
     y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)

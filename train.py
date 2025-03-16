@@ -76,6 +76,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
     
     test_path = data_dict['val']
     nc = 1 if opt.single_cls else int(data_dict['nc'])  # number of classes
+    print("Number of classes: ", nc)
     names = ['item'] if opt.single_cls and len(data_dict['names']) != 1 else data_dict['names']  # class names
     assert len(names) == nc, '%g names found for nc=%g dataset in %s' % (len(names), nc, opt.data)  # check
 
@@ -365,7 +366,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
             if ema:
                 ema.update_attr(model, include=['yaml', 'nc', 'hyp', 'gr', 'names', 'stride', 'class_weights'])
             final_epoch = epoch + 1 == epochs
-            if not opt.notest and epoch%20 == 0 and epoch > 30 or  not opt.notest and epoch >  0.8*epochs and epoch%5 == 0 or final_epoch:  # Calculate accuracies
+            if not opt.notest and epoch%1 == 0 or  not opt.notest and epoch >  0.8*epochs and epoch%5 == 0 or final_epoch:  # Calculate accuracies
                 results = test.test(opt.data,
                                     batch_size = opt.batch_size,
                                     imgsz=imgsz_test,
@@ -377,6 +378,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
                                     plots = plots,
                                     log_imgs=opt.log_imgs if wandb else 0,
                                     compute_loss=True,
+                                    nc=nc,
                                     symetric = opt.symetric)
 
                 print(results)

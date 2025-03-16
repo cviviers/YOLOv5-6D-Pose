@@ -20,7 +20,7 @@ from utils.loss import PoseLoss
 import matplotlib.pyplot as plt
 from PIL import Image
 import matplotlib.patches as patches
-
+from collections import defaultdict
 from utils.compute_overlap import wrapper_c_min_distances # for computing ADD-S metric
 
 def test(data, weights=None, batch_size=1,
@@ -82,23 +82,22 @@ def test(data, weights=None, batch_size=1,
     check_dataset(data)  # check
     nc = 1 if single_cls else int(data['nc'])  # number of classes
     
-    testing_error_trans  = 0.0
-    testing_error_angle  = 0.0
-    testing_error_pixel  = 0.0
-    testing_samples      = 0.0
-    errs_2d              = []
-    errs_3d              = []
-    errs_trans           = []
-    errs_angle           = []
-    errs_corner2D        = []
-
-
-
-    # Variable to save
-    testing_errors_trans    = []
-    testing_errors_angle    = []
-    testing_errors_pixel    = []
-    testing_accuracies      = []
+    # Create a defaultdict where each key (class id) maps to a dictionary holding all metrics
+    metrics = defaultdict(lambda: {
+        'testing_error_trans': 0.0,
+        'testing_error_angle': 0.0,
+        'testing_error_pixel': 0.0,
+        'testing_samples': 0,
+        'errs_2d': [],
+        'errs_3d': [],
+        'errs_trans': [],
+        'errs_angle': [],
+        'errs_corner2D': [],
+        'testing_errors_trans': [],
+        'testing_errors_angle': [],
+        'testing_errors_pixel': [],
+        'testing_accuracies': []
+    })
 
     edges_corners = [[0, 1], [0, 2], [0, 4], [1, 3], [1, 5], [2, 3], [2, 6], [3, 7], [4, 5], [4, 6], [5, 7], [6, 7]]
     colormap      = np.array(['r', 'g', 'b', 'c', 'm', 'y',  'k', 'w','xkcd:sky blue' ])
@@ -131,14 +130,28 @@ def test(data, weights=None, batch_size=1,
     # for mesh_id in range(8):
     #     mesh_list.append(MeshPly(data[f'mesh{mesh_id}']))
 
-    mesh       = MeshPly(data[f'mesh'])
-    vertices   = np.c_[np.array(mesh.vertices), np.ones((len(mesh.vertices), 1))].transpose()
-    corners3D  = get_3D_corners(vertices)
+    object_dict = {}
 
-    try:
-        diam  = float(data['diam'])
-    except:
-        diam  = calc_pts_diameter(np.array(mesh.vertices))
+    if nc == 1:
+        mesh = MeshPly(data['mesh'])
+        vertices   = np.c_[np.array(mesh.vertices), np.ones((len(mesh.vertices), 1))].transpose()
+        corners3D  = get_3D_corners(vertices)
+        try:
+            diam  = float(data['diam'])
+        except:
+            diam  = calc_pts_diameter(np.array(mesh.vertices))
+        object_dict[0] = {'mesh': mesh, 'vertices': vertices, 'corners3D':corners3D, 'diam': diam}
+    else:
+        for obj_num in range(nc):
+            mesh = MeshPly(data[f'mesh{obj_num}'])
+            vertices   = np.c_[np.array(mesh.vertices), np.ones((len(mesh.vertices), 1))].transpose()
+            corners3D  = get_3D_corners(vertices)
+            try:
+                diam  = float(data[f'diam{obj_num}'])
+            except:
+                diam  = calc_pts_diameter(np.array(mesh.vertices))
+            object_dict[obj_num] = {'mesh': mesh, 'vertices': vertices, 'corners3D':corners3D, 'diam': diam}
+            
 
     wandb_images = []
     count = 0
@@ -169,7 +182,7 @@ def test(data, weights=None, batch_size=1,
             t3.append(time_synchronized() - t)
 
             # Using confidence threshold, eliminate low-confidence predictions
-            out = box_filter(out, conf_thres=conf_thres)
+            out = box_filter(out, conf_thres=conf_thres, multi_label=False if single_cls else nc > 1)
             t4.append(time_synchronized() - t)
 
             # Statistics per image
@@ -196,128 +209,205 @@ def test(data, weights=None, batch_size=1,
                 seen += 1
                 # Iterate through each prediction and ground-truth object
 
+                if test_plotting or (plots and len(wandb_images)) < log_imgs:
+
+                    local_img           = img[si, : , : , :].cpu().numpy().transpose(1, 2, 0)
+                    local_img           = retrieve_image(local_img, img[si].shape[1:], (shape[0], shape[1]), shapes[si][1]) #  im_native_width, im_native_height 
+                    figsize=(im_native_width/96, im_native_height/96)
+                    fig = plt.figure(frameon=False, figsize=figsize)
+
+                    ax = plt.Axes(fig, [0., 0., 1., 1.])
+                    ax.set_axis_off()
+                    fig.add_axes(ax)
+                    
+                    image = np.uint8(local_img*255) # .resize((im_native_width, im_native_height)))
+                    ax.imshow(image, cmap='gray', aspect='auto')
+
+
                 for k in range(nl):
 
                     box_gt = tbox[k]
-                    full_pr = predn[torch.where(predn[:, 19] == k), :]
-                    if len(full_pr) == 0 or not full_pr.shape[0] or full_pr.nelement()==0:
+                    class_predictions = torch.where(predn[:, 19] == k)
+                    if len(class_predictions) == 0 or not class_predictions:
                         continue
-                    
-                    box_pr = full_pr[0,:18]
-                    prediction_confidence = full_pr[0,18]
-                    # Denormalize the corner predictions 
-                    corners2D_gt = np.array(np.reshape(box_gt[:num_keypoints*2], [num_keypoints, 2]), dtype='float32')
-                    corners2D_pr = np.array(np.reshape(box_pr[:num_keypoints*2], [num_keypoints, 2]), dtype='float32')
 
-                    # Compute corner prediction error
-                    corner_norm = np.linalg.norm(corners2D_gt - corners2D_pr, axis=1)
-                    corner_dist = np.mean(corner_norm)
-                    errs_corner2D.append(corner_dist)
+                    # add another loop for each viable prediction
+                    for class_i in range(len(class_predictions)):
+                        if len(class_predictions[class_i]) == 0:
+                            continue
+                        full_pr = predn[class_predictions[class_i], :]
+                        box_pr = full_pr[0,:18]
+                        prediction_confidence = full_pr[0,18]
+                        # Denormalize the corner predictions 
+                        corners2D_gt = np.array(np.reshape(box_gt[:num_keypoints*2], [num_keypoints, 2]), dtype='float32')
+                        corners2D_pr = np.array(np.reshape(box_pr[:num_keypoints*2], [num_keypoints, 2]), dtype='float32')
 
-                    u0, v0, fx, fy = intrinsics[k][4], intrinsics[k][5], intrinsics[k][0], intrinsics[k][1]
-                    internal_calibration = get_camera_intrinsic(u0, v0, fx, fy)
+                        # Compute corner prediction error
+                        corner_norm = np.linalg.norm(corners2D_gt - corners2D_pr, axis=1)
+                        corner_dist = np.mean(corner_norm)
+                        metrics[k]['errs_corner2D'].append(corner_dist)
+                        # errs_corner2D.append(corner_dist)
 
-                    # Compute [R|t] by pnp
-                    R_gt, t_gt = pnp(np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32'),  corners2D_gt, np.array(internal_calibration, dtype='float32'))
-                    t_temp = time_synchronized()
-                    R_pr, t_pr = pnp(np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32'),  corners2D_pr, np.array(internal_calibration, dtype='float32'))
-                    t6.append(time_synchronized() - t_temp)
+                        u0, v0, fx, fy = intrinsics[k][4], intrinsics[k][5], intrinsics[k][0], intrinsics[k][1]
+                        internal_calibration = get_camera_intrinsic(u0, v0, fx, fy)
 
-                    # Compute errors
-                    # Compute translation error
-                    trans_dist   = np.sqrt(np.sum(np.square(t_gt - t_pr)))
-                    errs_trans.append(trans_dist)
+                        corners3D = object_dict[k]['corners3D']
+                        vertices  = object_dict[k]['vertices']
 
-                    # Compute angle error
-                    angle_dist   = calcAngularDistance(R_gt, R_pr)
-                    errs_angle.append(angle_dist)
+                        # Compute [R|t] by pnp
+                        R_gt, t_gt = pnp(np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32'),  corners2D_gt, np.array(internal_calibration, dtype='float32'))
+                        t_temp = time_synchronized()
+                        R_pr, t_pr = pnp(np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32'),  corners2D_pr, np.array(internal_calibration, dtype='float32'))
+                        t6.append(time_synchronized() - t_temp)
 
-                    # Compute pixel error
-                    Rt_gt        = np.concatenate((R_gt, t_gt), axis=1)
-                    Rt_pr        = np.concatenate((R_pr, t_pr), axis=1)
-                    proj_2d_gt   = compute_projection(vertices, Rt_gt, internal_calibration) 
-                    proj_2d_pred = compute_projection(vertices, Rt_pr, internal_calibration) 
-                    norm         = np.linalg.norm(proj_2d_gt - proj_2d_pred, axis=0)
-                    pixel_dist   = np.mean(norm)
-                    errs_2d.append(pixel_dist)
+                        # Compute errors
+                        # Compute translation error
+                        trans_dist   = np.sqrt(np.sum(np.square(t_gt - t_pr)))
 
-                    # Compute 3D distances
-                    transform_3d_gt   = compute_transformation(vertices, Rt_gt) 
-                    transform_3d_pred = compute_transformation(vertices, Rt_pr)  
-                    if symetric:
-                        norm3d         = wrapper_c_min_distances(transform_3d_gt, transform_3d_pred)
-                    else:
-                        norm3d        = np.linalg.norm(transform_3d_gt - transform_3d_pred, axis=0)
-                    vertex_dist       = np.mean(norm3d)    
-                    errs_3d.append(vertex_dist)  
+                        # errs_trans.append(trans_dist)
+                        metrics[k]['errs_trans'].append(trans_dist)
 
-                    # Sum errors
-                    testing_error_trans  += trans_dist
-                    testing_error_angle  += angle_dist
-                    testing_error_pixel  += pixel_dist
-                    testing_samples      += 1
+                        # Compute angle error
+                        angle_dist   = calcAngularDistance(R_gt, R_pr)
+                        # errs_angle.append(angle_dist)
+                        metrics[k]['errs_angle'].append(angle_dist)
 
-                    # test_plotting = False
-                    # W&B logging
-                    if test_plotting or (plots and len(wandb_images)) < log_imgs:
+                        # Compute pixel error
+                        Rt_gt        = np.concatenate((R_gt, t_gt), axis=1)
+                        Rt_pr        = np.concatenate((R_pr, t_pr), axis=1)
+                        proj_2d_gt   = compute_projection(vertices, Rt_gt, internal_calibration) 
+                        proj_2d_pred = compute_projection(vertices, Rt_pr, internal_calibration) 
+                        norm         = np.linalg.norm(proj_2d_gt - proj_2d_pred, axis=0)
+                        pixel_dist   = np.mean(norm)
+                        #errs_2d.append(pixel_dist)
+                        metrics[k]['errs_2d'].append(pixel_dist)
 
-                        local_img           = img[si, : , : , :].cpu().numpy().transpose(1, 2, 0)
-                        local_img           = retrieve_image(local_img, img[si].shape[1:], (shape[0], shape[1]), shapes[si][1]) #  im_native_width, im_native_height 
-                        figsize=(im_native_width/96, im_native_height/96)
-                        fig = plt.figure(frameon=False, figsize=figsize)
+                        # Compute 3D distances
+                        transform_3d_gt   = compute_transformation(vertices, Rt_gt) 
+                        transform_3d_pred = compute_transformation(vertices, Rt_pr)  
+                        if symetric:
+                            norm3d         = wrapper_c_min_distances(transform_3d_gt, transform_3d_pred)
+                        else:
+                            norm3d        = np.linalg.norm(transform_3d_gt - transform_3d_pred, axis=0)
+                        vertex_dist       = np.mean(norm3d)    
+                        # errs_3d.append(vertex_dist)
+                        metrics[k]['errs_3d'].append(vertex_dist)  
 
-                        ax = plt.Axes(fig, [0., 0., 1., 1.])
-                        ax.set_axis_off()
-                        fig.add_axes(ax)
-                        
-                        image = np.uint8(local_img*255) # .resize((im_native_width, im_native_height)))
-                        ax.imshow(image, cmap='gray', aspect='auto')
-                       
-                        corn2D_pr= corners2D_pr[1:, :]
-                        corn2D_gt= corners2D_gt[1:, :]
+                        # Sum errors
+                        # testing_error_trans  += trans_dist
+                        metrics[k]['testing_error_trans'] += trans_dist
+                        # testing_error_angle  += angle_dist
+                        metrics[k]['testing_error_angle'] += angle_dist
+                        # testing_error_pixel  += pixel_dist
+                        metrics[k]['testing_error_pixel'] += pixel_dist
+                        # testing_samples      += 1
+                        metrics[k]['testing_samples'] += 1
 
-                        # Projections
-                        for edge in edges_corners:
-                            ax.plot(corn2D_gt[edge, 0], corn2D_gt[edge, 1], color='g', linewidth=0.5) #  if test_plotting else None
-                            ax.plot(corn2D_pr[edge, 0], corn2D_pr[edge, 1], color='b', linewidth=0.5)
-                        ax.scatter(corners2D_gt.T[0], corners2D_gt.T[1], c=colormap, s = 10)  # if not test_plotting else None
-                        ax.scatter(corners2D_pr.T[0], corners2D_pr.T[1], c=colormap, s = 10)
+                        # test_plotting = False
+                        # W&B logging
+                        if test_plotting or (plots and len(wandb_images)) < log_imgs:
+                            corn2D_pr= corners2D_pr[1:, :]
+                            corn2D_gt= corners2D_gt[1:, :]
 
-                        # draw on image
-                        # Create a Rectangle patch
-                        min_x = np.amin(corners2D_pr.T[0])
-                        min_y = np.amin(corners2D_pr.T[1])
+                            # Projections
+                            for edge in edges_corners:
+                                ax.plot(corn2D_gt[edge, 0], corn2D_gt[edge, 1], color='g', linewidth=0.5) #  if test_plotting else None
+                                ax.plot(corn2D_pr[edge, 0], corn2D_pr[edge, 1], color='b', linewidth=0.5)
+                            ax.scatter(corners2D_gt.T[0], corners2D_gt.T[1], c=colormap, s = 10)  # if not test_plotting else None
+                            ax.scatter(corners2D_pr.T[0], corners2D_pr.T[1], c=colormap, s = 10)
 
-                        # vx_threshold = diam * 0.1
-                        # facecolor = 'green' if vertex_dist <=vx_threshold else 'red'
-                        # ax.text(min_x, min_y-30, f"conf: {prediction_confidence:.3f}", style='italic', bbox={'facecolor': facecolor, 'alpha': 0.5, 'pad': 2})
-                        # ax.text(min_x, min_y-10, f"2d err: {pixel_dist:.3f}, vertex_dist: {vertex_dist:.3f}", style='italic', bbox={'facecolor': facecolor, 'alpha': 0.5, 'pad': 2})
-                        
+                            # draw on image
+                            # Create a Rectangle patch
+                            min_x = np.amin(corners2D_pr.T[0])
+                            min_y = np.amin(corners2D_pr.T[1])
 
-                        filename = f'foo_{count}_{datetime.now().strftime("%H_%M_%S")}.png'
-                        file_path = os.path.join(save_dir, filename)
-                        fig.savefig(file_path, dpi = 96, bbox_inches='tight', pad_inches=0)
-                        plt.close()
-                        wandb_images.append(wandb.Image(file_path)) if not test_plotting else None
+                            # vx_threshold = diam * 0.1
+                            # facecolor = 'green' if vertex_dist <=vx_threshold else 'red'
+                            # ax.text(min_x, min_y-30, f"conf: {prediction_confidence:.3f}", style='italic', bbox={'facecolor': facecolor, 'alpha': 0.5, 'pad': 2})
+                            # ax.text(min_x, min_y-10, f"2d err: {pixel_dist:.3f}, vertex_dist: {vertex_dist:.3f}", style='italic', bbox={'facecolor': facecolor, 'alpha': 0.5, 'pad': 2})
+                            
+                if test_plotting or (plots and len(wandb_images)) < log_imgs:
+                    filename = f'foo_{count}_{datetime.now().strftime("%H_%M_%S")}.png'
+                    file_path = os.path.join(save_dir, filename)
+                    fig.savefig(file_path, dpi = 96, bbox_inches='tight', pad_inches=0)
+                    plt.close()
+                    wandb_images.append(wandb.Image(file_path)) if not test_plotting else None
 
-                        count+=1
+                    count+=1
             t5.append(time_synchronized() - t)
 
-    # Compute 2D projection, 6D pose and 5cm5degree scores
-    px_threshold = 5 # 5 pixel threshold for 2D reprojection error is standard in recent sota 6D object pose estimation works 
-    vx_threshold = diam * 0.1
-    eps          = 1e-5
-    acc_value    = len(np.where(np.array(errs_2d) <= px_threshold)[0]) 
-    acc          = acc_value * 100. / (len(errs_2d)+eps) 
-    acc3d_value  = len(np.where(np.array(errs_3d) <= vx_threshold)[0]) 
-    acc3d        = acc3d_value * 100. / (len(errs_3d)+eps) 
-    acc5cm5deg_value   = len(np.where((np.array(errs_trans) <= 0.05) & (np.array(errs_angle) <= 5))[0]) 
-    acc5cm5deg   = acc5cm5deg_value* 100. / (len(errs_trans)+eps)
-    corner_acc   = len(np.where(np.array(errs_corner2D) <= px_threshold)[0]) * 100. / (len(errs_corner2D)+eps)
-    mean_err_2d  = np.mean(errs_2d)
-    mean_corner_err_2d = np.mean(errs_corner2D)
-    nts = float(testing_samples)
-    
+    # Parameters
+    px_threshold = 5     # pixel threshold for 2D reprojection error
+    eps = 1e-5           # to avoid division by zero
+
+    # Dictionary to store computed metrics per class
+    class_metrics = {}
+    for cls, metric_data in metrics.items():
+        # Get the class-specific diameter and compute the 3D threshold
+        diam = data["diam"+str(cls)]  # class-specific diameter
+        vx_threshold = diam * 0.1
+        
+        # Convert error lists to NumPy arrays for vectorized operations
+        errs_2d = np.array(metric_data['errs_2d'])
+        errs_3d = np.array(metric_data['errs_3d'])
+        errs_trans = np.array(metric_data['errs_trans'])
+        errs_angle = np.array(metric_data['errs_angle'])
+        errs_corner2D = np.array(metric_data['errs_corner2D'])
+        
+        # Compute the scores per class using thresholds:
+        acc_value = np.sum(errs_2d <= px_threshold)
+        acc = acc_value * 100. / (len(errs_2d) + eps)
+        
+        acc3d_value = np.sum(errs_3d <= vx_threshold)
+        acc3d = acc3d_value * 100. / (len(errs_3d) + eps)
+        
+        acc5cm5deg_value = np.sum((errs_trans <= 0.05) & (errs_angle <= 5))
+        acc5cm5deg = acc5cm5deg_value * 100. / (len(errs_trans) + eps)
+        
+        corner_acc = np.sum(errs_corner2D <= px_threshold) * 100. / (len(errs_corner2D) + eps)
+        
+        mean_err_2d = np.mean(errs_2d) if len(errs_2d) > 0 else 0.0
+        mean_corner_err_2d = np.mean(errs_corner2D) if len(errs_corner2D) > 0 else 0.0
+        samples = metric_data['testing_samples']
+        
+        class_metrics[cls] = {
+            'acc': acc,
+            'acc3d': acc3d,
+            'acc5cm5deg': acc5cm5deg,
+            'corner_acc': corner_acc,
+            'mean_err_2d': mean_err_2d,
+            'mean_corner_err_2d': mean_corner_err_2d,
+            'testing_samples': samples
+        }
+
+    # Now, to aggregate metrics across classes, you have two options:
+
+    # Option 1: Simple average (unweighted)
+    avg_metrics = { key: np.mean([m[key] for m in class_metrics.values()]) 
+                    for key in ['acc', 'acc3d', 'acc5cm5deg', 'corner_acc', 'mean_err_2d', 'mean_corner_err_2d'] }
+
+    # Option 2: Weighted average (weighted by the number of samples per class)
+    weighted_avg_metrics = {}
+    for key in ['acc', 'acc3d', 'acc5cm5deg', 'corner_acc', 'mean_err_2d', 'mean_corner_err_2d']:
+        numerator = 0.0
+        total_samples = 0.0
+        for m in class_metrics.values():
+            numerator += m[key] * m['testing_samples']
+            total_samples += m['testing_samples']
+        weighted_avg_metrics[key] = numerator / (total_samples + eps) if total_samples > 0 else 0.0
+
+    print("Simple average metrics across classes:", avg_metrics)
+    print("Weighted average metrics across classes:", weighted_avg_metrics)
+
+    # total number of samples considered
+    nts = np.sum([m['testing_samples'] for m in class_metrics.values()])
+    # average translation error
+    testing_error_trans = np.sum([m['testing_error_trans'] for m in metrics.values()])
+    # average angle error
+    testing_error_angle = np.sum([m['testing_error_angle'] for m in metrics.values()])
+    # average pixel error
+    testing_error_pixel = np.sum([m['testing_error_pixel'] for m in metrics.values()])
+
     t1 = np.array(t1)
     t2 = np.array(t2)
     t3 = np.array(t3)
@@ -326,6 +416,7 @@ def test(data, weights=None, batch_size=1,
     t6 = np.array(t6)
 
     num_itr = 5 # first couple of passes are slow
+
     if True:
         print('-----------------------------------')
         print('  tensor to cuda : %f' % (np.mean(t1[-num_itr:])))
@@ -345,10 +436,10 @@ def test(data, weights=None, batch_size=1,
     print('   Translation error: %f, angle error: %f' % (testing_error_trans/(nts+eps), testing_error_angle/(nts+eps)) )
 
     # Register losses and errors for saving later on
-    testing_errors_trans.append(testing_error_trans/(nts+eps))
-    testing_errors_angle.append(testing_error_angle/(nts+eps))
-    testing_errors_pixel.append(testing_error_pixel/(nts+eps))
-    testing_accuracies.append(acc)
+    # testing_errors_trans.append(testing_error_trans/(nts+eps))
+    # testing_errors_angle.append(testing_error_angle/(nts+eps))
+    # testing_errors_pixel.append(testing_error_pixel/(nts+eps))
+    # testing_accuracies.append(acc)
     # Return results
     model.float()  # for training
 
