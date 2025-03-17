@@ -159,62 +159,66 @@ def corner_confidence(gt_corners, pr_corners, im_grid_width, im_grid_height, th=
     return torch.mean(conf, dim=1)
 
 
-def box_filter(prediction, conf_thres=0.01, classes=None, multi_label=False, max_det = 1):
+def box_filter(prediction, conf_thres=0.01, classes=None, multi_label=False, max_det_per_class=1):
     """Performs box filtering on inference results
 
     Returns:
-         detections with shape: nx6 (x0, y0,.., x8, y8, conf, cls)
+         detections with shape: nx20 (x0, y0,..., x17, conf, cls)
     """
 
     nc = prediction.shape[2] - 19  # number of classes
     xc = prediction[:, :, 18] > conf_thres  # candidates
 
     # Settings
-    max_det = max_det  # maximum number of detections per image
-    # max_nms = 1  
     time_limit = 1.0  # seconds to quit after
-    multi_label = nc > 1 and  multi_label # multiple labels per box (adds 0.5ms/img)
+    multi_label = nc > 1 and multi_label  # multiple labels per box (adds 0.5ms/img)
 
     t = time.time()
     output = [torch.zeros((0, 20))] * prediction.shape[0]
     for xi, x in enumerate(prediction):  # image index, image inference
 
-        x = x[xc[xi]]  # confidence
-        # If none remain process next image
+        x = x[xc[xi]]  # keep only candidates with sufficient confidence
         if not x.shape[0]:
             continue
 
-        # Compute conf
-        x[:, 19:] *= x[:, 18:19]  # conf = obj_conf * cls_conf
+        # Compute conf: multiply objectness score with class score
+        x[:, 19:] *= x[:, 18:19]
         box = x[:, :18]
 
-
-        # # elif n > max_nms:  # excess boxes
         if multi_label:
             i, j = (x[:, 19:] > conf_thres).nonzero(as_tuple=False).T
             x = torch.cat((box[i], x[i, j + 19, None], j[:, None].float()), 1)
-        else:  # best class only
+        else:
             conf, j = x[:, 19:].max(1, keepdim=True)
             x = torch.cat((box, conf, j.float()), 1)[conf.view(-1) > conf_thres]
 
-        # Filter by class
+        # Filter by specified classes, if any
         if classes is not None:
             x = x[(x[:, 19:20] == torch.tensor(classes, device=x.device)).any(1)]
 
         n = x.shape[0]  # number of boxes
-        # print(f"number of boxes {n}")
-        if not n:  # no boxes
+        if not n:
             continue
-        elif n > max_det:
-            x = x[x[:, 18].argsort(descending=True)[:max_det]]  # sort by confidence
 
-        # print(f"final{x=}")
+        # Group predictions by class and select up to max_det_per_class per class
+        selected = []
+        unique_classes = x[:, 19].unique()
+        for cls in unique_classes:
+            cls_mask = (x[:, 19] == cls)
+            x_cls = x[cls_mask]
+            # Sort by confidence (column 18) in descending order
+            x_cls = x_cls[x_cls[:, 18].argsort(descending=True)]
+            # Append the top max_det_per_class predictions for this class
+            selected.append(x_cls[:max_det_per_class])
+        x = torch.cat(selected, dim=0)
+
         output[xi] = x
         if (time.time() - t) > time_limit:
             print(f'WARNING: filter time limit {time_limit}s exceeded')
             break  # time limit exceeded
-    
+
     return output
+
 
 class MeshPly:
     def __init__(self, filename, color=[0., 0., 0.]):
