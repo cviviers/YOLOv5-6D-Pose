@@ -8,7 +8,6 @@
 *.heic
 *.JPG
 *.JPEG
-*.PNG
 *.BMP
 *.TIF
 *.TIFF
@@ -260,6 +259,7 @@ fabric.properties
 
 !results/images/acc_vs_speed.png
 !results/images/example_cat.jpg
+!results/images/multi.png
 
 # dev stuff
 temp/

@@ -5,7 +5,6 @@
 </div>
 
 <h3 align="center">
-  <a href="">Project Page (Coming soon)</a> |
   <a href="https://ieeexplore.ieee.org/document/10478293">Paper</a> |
   <a href="https://arxiv.org/abs/2405.11677v1">arXiv</a> |
 </h3>
@@ -19,6 +18,12 @@
 <img src="https://github.com/cviviers/YOLOv5-6D-Pose/blob/main/results/images/phantom.gif" width=45% height=50%>
 </p>
 
+<h3 align="center">
+Multi-object Pose Estimation
+</h3>
+<p float="left">
+<img src="https://github.com/cviviers/YOLOv5-6D-Pose/blob/main/results/images/multi.png" width=90%>
+</p>
 
 <!--[teaser](results/images/architecture.png)-->
 
@@ -83,7 +88,7 @@ We have also created an easy [guide](https://github.com/cviviers/YOLOv5-6D-Pose/
 - [x] Release code: code will be released upon paper acceptance.
 - [x] Release weights: will be released upon paper acceptance.
 - [ ] Linemod occlusion results
-- [ ] Multi-object Pose
+- [x] Multi-object Pose (available on [multi](https://github.com/cviviers/YOLOv5-6D-Pose/tree/multi) branch)
 - [ ] Release code & results for YOLOv8-6D pose
 
 ## Citation <a name="citation"></a>
