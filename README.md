@@ -52,7 +52,7 @@ python3 ./setup.py build_ext --inplace # To compute ADD-S metric
 ```
 Alternatively, build the [dockerfile](https://github.com/cviviers/YOLOv5-6D-Pose/blob/master/docker) included or pull our image [sudochris/yolo6dpose:v2](https://hub.docker.com/repository/docker/sudochris/yolo6dpose/general).
 
-Download the [weights](https://drive.google.com/drive/folders/11BW41xO3R1UBnc2Dx1xA3CPbYPGTrfHQ?usp=drive_link) and [data](https://drive.google.com/drive/folders/13pkdF4KpqXWXbEIkiAcHoO-YUr_CWN-L?usp=drive_link)
+Download the [weights](https://drive.google.com/drive/folders/11BW41xO3R1UBnc2Dx1xA3CPbYPGTrfHQ?usp=drive_link), [data single](https://drive.google.com/drive/folders/13pkdF4KpqXWXbEIkiAcHoO-YUr_CWN-L?usp=drive_link) and [data multi](https://drive.google.com/file/d/10ODH3hyla34UnJHpJ0ipIL8Tn0x4Hqbn/view?usp=drive_link)
 
 </details>
 <details>
